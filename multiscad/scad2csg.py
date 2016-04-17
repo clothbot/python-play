@@ -51,13 +51,14 @@ class OpenSCAD(object):
                     print "   variant_name = ",variant_name
                 array.append(parse_line)
             ins.close()
+        print ""
         print "Summary:"
         for module_name in self.modules.keys() :
-            print "  module ",module_name
+            print "  module '"+module_name+"'"
             for module_params in self.modules[module_name].keys() :
-                print "    params ",module_params
-                print "      variant = ",self.modules[module_name][module_params]['variant']
-                print "      count = ",self.modules[module_name][module_params]['count']
+                print "    params ("+module_params+")"
+                print "      variant = '"+self.modules[module_name][module_params]['variant']+"'"
+                print "      count = "+str(self.modules[module_name][module_params]['count'])
     def analyze_module(self,name,params) :
         print "  analyze_module : name = ",name," params = ",params
         if not self.modules.has_key(name) :
