@@ -23,15 +23,17 @@ class OpenSCAD(object):
         self.csg_file = args.csg
         self.threads = args.threads
         self.modules = {}
+        self.hierarchy = []
         self.module_variants = {} 
         print "Arguments: ",args
         subprocess.check_output([self.openscad,"-o",self.workdir+"/"+self.csg_file,self.scad_file])
         self.read_csg()
     def read_csg(self):
         with open( self.workdir+"/"+self.csg_file, "r") as ins:
-            array = []
+            lines = []
             hier_level=0
             for line in ins:
+                variant_name=""
                 module_parts=False
                 parse_line=line.rstrip('\n').rstrip('\r')
                 parse_line=parse_line.lstrip(' ').lstrip('\t')
@@ -39,17 +41,19 @@ class OpenSCAD(object):
                     hier_level=hier_level+1
                 if re.search('\A}',parse_line) :
                     hier_level=hier_level-1
-                module_parts=re.match(r"([^(]+)\(([^)]+)\)",parse_line)
+                module_parts=re.match(r"([^(]+)\(([^)]*)\)\s*([;{])",parse_line)
                 if module_parts :
                     module_name=module_parts.group(1)
                     module_params=module_parts.group(2)
+                    module_suffix=module_parts.group(3)
                     variant_name=self.analyze_module(module_name,module_params)
                 print "read_csg: ",hier_level," : ",parse_line
                 if module_parts :
                     print "   module_name = ",module_name
                     print "   module_params = ",module_params
+                    print "   module_suffix = ",module_suffix
                     print "   variant_name = ",variant_name
-                array.append(parse_line)
+                lines.append(parse_line)
             ins.close()
         print ""
         print "Summary:"
