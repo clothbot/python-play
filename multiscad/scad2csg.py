@@ -2,6 +2,7 @@
 
 import sys
 import os
+import platform
 import re
 import subprocess
 import argparse
@@ -12,10 +13,53 @@ parser.add_argument('--threads', help='Number of threads to run in parallel', ty
 parser.add_argument('--workdir', help='Working Directory', default="./workdir")
 args = parser.parse_args()
 
+class CSGTree(object):
+    """ OpenSCAD CSG Tree"""
+    def __init__(self, name='root', type=None, params=None, children=None, parent=None):
+        self.name = name
+        self.children = []
+        self.type=type
+        self.params = []
+        self.parent = parent
+        if params is not None:
+            for param in params:
+                self.add_param(param)
+        if children is not None:
+            for child in children:
+                self.add_child(child)
+    def __repr__(self):
+        return self.name
+    def add_child(self, node):
+        assert isinstance(node, CSGTree)
+        self.children.append(node)
+    def add_param(self, param):
+        assert isinstance(param, CSGParam)
+        self.params.append(param)
+    def print_tree(self, indent=""):
+        print indent+"CSGTree: "+str(self.name)+" type:"+str(self.type)
+        if len(self.params) > 0:
+            for param in self.params:
+                param.print_pair(indent=indent+"    ")
+        if len(self.children) > 0:
+            for child in self.children:
+                child.print_tree(indent=indent+"  ")
+
+class CSGParam(object):
+    """ OpenSCAD CSG Parameter Name/Value pair"""
+    def __init__(self, name=None, value=None):
+        self.name = name
+        self.value = value
+    def print_pair(self,indent=""):
+        print indent+"CSGParam: "+self.name+" = "+self.value
+
 class OpenSCAD(object):
     """ Run OpenSCAD processes """
     def __init__(self):
-        self.openscad = "/Applications/OpenSCAD.app/Contents/MacOS/OpenSCAD"
+        if platform.system() == 'Darwin' :
+            self.openscad = "/Applications/OpenSCAD.app/Contents/MacOS/OpenSCAD"
+        elif platform.system() == 'Linux' :
+            self.openscad = subprocess.check_output(['which','openscad'])
+        self.openscad=self.openscad.rstrip('\n').rstrip('\r')
         self.workdir = args.workdir
         if not os.path.isdir(self.workdir) :
             os.makedirs(self.workdir)
@@ -28,6 +72,8 @@ class OpenSCAD(object):
         self.file_stack = []
         self.operator_variants = {} 
         self.instance_variants = {} 
+        self.tree=CSGTree()
+        self.node=self.tree
         print "Arguments: ",args
         subprocess.check_output([self.openscad,"-o",self.workdir+"/"+self.csg_file,self.scad_file])
         self.read_csg()
@@ -47,10 +93,17 @@ class OpenSCAD(object):
                     module_suffix=module_parts.group(3)
                     if module_suffix == ";" :
                         variant_name=self.analyze_instance(module_name,module_params)
+                        new_params=CSGParam(name="params",value=module_params)
+                        new_node=CSGTree(name=variant_name,type=module_name,params=[ new_params ],parent=self.node)
+                        self.node.add_child(new_node)
                     else :
                         hier_level=hier_level+1
                         variant_name=self.analyze_operator(module_name,module_params)
                         self.hierarchy.append(variant_name)
+                        new_params=CSGParam(name="params",value=module_params)
+                        new_node=CSGTree(name=variant_name,type=module_name,params=[ new_params ],parent=self.node)
+                        self.node.add_child(new_node)
+                        self.node=new_node
                 print "read_csg: ",hier_level," : ",parse_line
                 if module_parts :
                     print "   module_name = ",module_name
@@ -60,6 +113,7 @@ class OpenSCAD(object):
                 if re.search('\A}',parse_line) :
                     hier_level=hier_level-1
                     self.hierarchy.pop()
+                    self.node=self.node.parent
                 lines.append(parse_line)
             ins.close()
         print ""
@@ -79,6 +133,8 @@ class OpenSCAD(object):
                 print "      paths:"
                 for path in self.instances[instance_name][instance_params]['paths'] :
                     print "        "+str(path)
+        print "Tree:"
+        print self.tree.print_tree()
     def analyze_operator(self,name,params) :
         print "  analyze_operator : name = ",name," params = ",params
         param_key=params
