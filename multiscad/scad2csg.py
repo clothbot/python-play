@@ -81,19 +81,20 @@ class OpenSCAD(object):
                     print "        "+str(path)
     def analyze_operator(self,name,params) :
         print "  analyze_operator : name = ",name," params = ",params
+        param_key=params
         if not self.operators.has_key(name) :
             self.operators[name]={}
             self.operator_variants[name]={}
-        if not self.operators[name].has_key(params) :
-            self.operators[name][params]={}
-            self.operators[name][params]['count']=1
-            self.operators[name][params]['paths']=[]
+        if not self.operators[name].has_key(param_key) :
+            self.operators[name][param_key]={}
+            self.operators[name][param_key]['count']=1
+            self.operators[name][param_key]['paths']=[]
             operator_variant_name=name+str(len(self.operator_variants[name].keys()))
-            self.operators[name][params]['variant']=operator_variant_name
-            self.operator_variants[name][operator_variant_name]=params
+            self.operators[name][param_key]['variant']=operator_variant_name
+            self.operator_variants[name][operator_variant_name]=param_key
         else :
-            self.operators[name][params]['count'] += 1
-            operator_variant_name=self.operators[name][params]['variant']
+            self.operators[name][param_key]['count'] += 1
+            operator_variant_name=self.operators[name][param_key]['variant']
         return operator_variant_name
     def analyze_instance(self,name,params) :
         print "  analyze_instance : name = ",name," params = ",params
